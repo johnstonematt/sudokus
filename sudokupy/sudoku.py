@@ -10,6 +10,8 @@ from sudokupy.utils import (
     find_adjacent_blocks,
     sudoku_coordinates,
     subset_coordinates,
+    sudoku_indices,
+    sudoku_numbers,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,8 +84,7 @@ class Sudoku:
         """
         while True:
             refined_successfully = self.refine_possibilities()
-            applied_successfully = False
-            # applied_successfully = self.apply_n_numbers_in_n_spaces()
+            applied_successfully = self.apply_n_numbers_in_n_spaces()
             # if neither methods yielded any progress, then we are done (either complete, or just stuck)
             if not (refined_successfully or applied_successfully):
                 break
@@ -136,19 +137,22 @@ class Sudoku:
         :return: Whether the method reduced the possibilities.
         """
         for subset in Subset:
-            for index in range(9):
-                for number in range(1, 10):
+            for index in sudoku_indices():
+                for number in sudoku_numbers():
+                    # this is just a flag used to break this loop from within the nested loop:
+                    skip_number = False
+
                     number_locations = self._possible_locations_in_subset(
                         subset=subset, index=index, number=number
                     )
                     n = len(number_locations)
                     numbers = [number]
-                    skip_number = False
-                    for other_number in range(1, 10):
+                    for other_number in sudoku_numbers():
                         # only look at other numbers:
                         if other_number == number:
                             continue
 
+                        # we are looking for len(numbers) == n, so if len(numbers) > n, we are too far:
                         if len(numbers) > n:
                             skip_number = True
                             break
@@ -157,14 +161,14 @@ class Sudoku:
                             subset=subset, index=index, number=other_number
                         )
                         # check equality of location sets by first comparing lengths and then literal contents:
-                        if len(other_locations) != n:
+                        if len(other_locations) != n or any(
+                            location not in number_locations
+                            for location in other_locations
+                        ):
                             continue
 
-                        for location in other_locations:
-                            if location not in number_locations:
-                                continue
-
-                        numbers.append(number)
+                        # other_number has the same possible locations as number, so we can add it:
+                        numbers.append(other_number)
 
                     if skip_number:
                         continue
@@ -311,8 +315,8 @@ class Sudoku:
         :return: Whether the sudoku is correct.
         """
         for subset in Subset:
-            for index in range(9):
-                for number in range(1, 10):
+            for index in sudoku_indices():
+                for number in sudoku_numbers():
                     if not self._subset_contains_number(
                         subset=subset, index=index, number=number, location=None
                     ):
@@ -430,12 +434,12 @@ class Sudoku:
     def __str__(self) -> str:
         horizontal_line = "-------------------------"
         sudoku_str = ""
-        for x in range(9):
+        for x in sudoku_indices():
             if x % 3 == 0:
                 sudoku_str += f"{horizontal_line}\n"
 
             line = ""
-            for y in range(9):
+            for y in sudoku_indices():
                 if y % 3 == 0:
                     line += "| "
 

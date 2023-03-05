@@ -92,11 +92,11 @@ def parse_puzzle(
 def subset_coordinates(subset: Subset, index: int) -> Iterator[Tuple[int, int]]:
     match subset:
         case Subset.ROW:
-            for i in range(9):
+            for i in sudoku_indices():
                 yield index, i
 
         case Subset.COLUMN:
-            for i in range(9):
+            for i in sudoku_indices():
                 yield i, index
 
         case Subset.BLOCK:
@@ -110,8 +110,8 @@ def subset_coordinates(subset: Subset, index: int) -> Iterator[Tuple[int, int]]:
 
 
 def sudoku_coordinates() -> Iterator[Tuple[int, int]]:
-    for x in range(9):
-        for y in range(9):
+    for x in sudoku_indices():
+        for y in sudoku_indices():
             yield x, y
 
 
@@ -155,3 +155,13 @@ def find_adjacent_blocks(block_index: int, direction: Subset) -> Tuple[int, int]
 
 def find_block_index(location: Tuple[int, int]) -> int:
     return 3 * (location[0] // 3) + (location[1] // 3)
+
+
+def sudoku_indices() -> Iterator[int]:
+    for index in range(9):
+        yield index
+
+
+def sudoku_numbers() -> Iterator[int]:
+    for number in range(1, 10):
+        yield number
