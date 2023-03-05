@@ -1,0 +1,17 @@
+# virtual environments:
+.venv
+
+# test scripts:
+playground.py
+
+# intellij:
+.idea
+
+# macos:
+.DS_Store
+
+# python:
+__pycache__
+
+# environment variables
+.env.local
