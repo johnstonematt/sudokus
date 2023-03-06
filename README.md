@@ -8,16 +8,18 @@ In general, I am prioritising logical conciseness over pure performance
 
 ## Solving Techniques
 
-The `Sudoku` class employs two solving techniques, one a purely "deterministic" technique in which a number is 
-only entered if the program is 100% certain that it is correct, and another which involves making a guess and trying 
-to solve from there (reverting on the guess if the puzzle turns out to be unsolvable).
+The `Sudoku` class employs two solving techniques:
+* A purely "deterministic" technique in which a number is only entered if the program is 100% certain that it is 
+correct.
+* A guessing technique which involves making a guess and trying to solve from there (reverting on the guess if the 
+puzzle turns out to be unsolvable).
 
 When generating sudoku puzzles (such as the unfinished puzzle one might find in a newspaper), the goal is to generate 
 a puzzle of sufficient difficulty which can be solved deterministically.
 
-### Input Format
+## Input Format
 
-The program reads a Sudoku as a row-by-row array of integers, where 0 represents and empty space.
+The program reads (and generates) a Sudoku as a row-by-row array of integers, where 0 represents and empty space.
 
 ```python
 sudoku_puzzle = [

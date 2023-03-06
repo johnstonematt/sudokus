@@ -1,13 +1,17 @@
+import time
 import random
 import logging
 from enum import Enum
-from typing import List, Iterator, TypeAlias, Tuple, Optional
+from functools import wraps
+from typing import List, Iterator, TypeAlias, Tuple, Optional, Callable, TypeVar, Any
 
 
 Puzzle: TypeAlias = List[List[int]]
 Board: TypeAlias = List[List[List[int]]]
 
 logger = logging.getLogger(__name__)
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class SudokuError(Exception):
@@ -46,6 +50,17 @@ class Subset(Enum):
 
             case Subset.BLOCK:
                 return find_block_index(location=location)
+
+
+def timer(func: F) -> F:
+    @wraps(func)
+    def _func(*args, **kwargs):
+        t = time.time()
+        result = func(*args, **kwargs)
+        print(f"{func.__name__}: {round(1e3 * (time.time() - t), 2)}ms")
+        return result
+
+    return _func
 
 
 def parse_puzzle(

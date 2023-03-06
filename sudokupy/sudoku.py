@@ -1,5 +1,5 @@
 import logging
-from typing import List, Tuple, Set, Optional
+from typing import List, Tuple, Set, Optional, Dict
 
 from sudokupy.utils import (
     Subset,
@@ -13,7 +13,7 @@ from sudokupy.utils import (
     subset_coordinates,
     sudoku_indices,
     sudoku_numbers,
-    empty_puzzle,
+    timer,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,7 @@ class Sudoku:
 
                 self.puzzle.append(puzzle_row)
 
+    @timer
     def solve_sudoku(self, allow_guessing: bool) -> None:
         logger.info("Solving the following sudoku:")
         print(self)
@@ -108,6 +109,7 @@ class Sudoku:
             if not (refined_successfully or applied_successfully):
                 break
 
+    # @timer
     def refine_possibilities(self) -> bool:
         """
         Apply standard 'is number possible?' to every possibility on the board until we stop making progress.
@@ -116,7 +118,7 @@ class Sudoku:
         """
         updated = False
         while True:
-            # this is just a tag to break/continue the outer while-loop from within the nested loops:
+            # this is just a tag to track whether we are actually making progress
             refined = False
 
             for location in sudoku_coordinates():
@@ -131,15 +133,10 @@ class Sudoku:
                         )
                         updated = True
                         refined = True
-                        break
 
                 # if there are no possible numbers in this location, something wrong has happened:
                 if not self[location]:
                     raise SudokuError(f"No possible numbers for cell {location}.")
-
-                # break back to continue the while-loop if we made a refinement:
-                if refined:
-                    break
 
             # start again if we made a refinement:
             if refined:
@@ -150,6 +147,7 @@ class Sudoku:
 
         return updated
 
+    # @timer
     def apply_n_numbers_in_n_spaces(self) -> bool:
         """
         If there are n numbers that can all go (exclusively) into n spaces,
@@ -159,13 +157,17 @@ class Sudoku:
         """
         for subset in Subset:
             for index in sudoku_indices():
+                all_number_locations: Dict[int, List[Tuple[int, int]]] = {
+                    number: self._possible_locations_in_subset(
+                        subset=subset, index=index, number=number
+                    )
+                    for number in sudoku_numbers()
+                }
                 for number in sudoku_numbers():
                     # this is just a flag used to break this loop from within the nested loop:
                     skip_number = False
 
-                    number_locations = self._possible_locations_in_subset(
-                        subset=subset, index=index, number=number
-                    )
+                    number_locations = all_number_locations[number]
                     n = len(number_locations)
                     numbers = [number]
                     for other_number in sudoku_numbers():
@@ -178,9 +180,7 @@ class Sudoku:
                             skip_number = True
                             break
 
-                        other_locations = self._possible_locations_in_subset(
-                            subset=subset, index=index, number=other_number
-                        )
+                        other_locations = all_number_locations[other_number]
                         # check equality of location sets by first comparing lengths and then literal contents:
                         if len(other_locations) != n or any(
                             location not in number_locations

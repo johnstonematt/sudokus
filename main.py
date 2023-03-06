@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import logging
+import time
 from typing import List
 
 from dotenv import load_dotenv
@@ -49,4 +50,4 @@ def generated() -> None:
 
 
 if __name__ == "__main__":
-    generated()
+    from_json()
