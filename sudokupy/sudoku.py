@@ -9,9 +9,11 @@ from sudokupy.utils import (
     find_block_index,
     find_adjacent_blocks,
     sudoku_coordinates,
+    sudoku_coordinates_random,
     subset_coordinates,
     sudoku_indices,
     sudoku_numbers,
+    empty_puzzle,
 )
 
 logger = logging.getLogger(__name__)
@@ -22,26 +24,43 @@ class Sudoku:
     A sudoku puzzle.
     """
 
-    def __init__(self, board: Board) -> None:
+    def __init__(
+        self, puzzle: Optional[Puzzle] = None, board: Optional[Board] = None
+    ) -> None:
         """
-        :param board: An array of possibilities for all sudoku cells.
+        :param puzzle:
+        :param board:
         """
-        self.board = board
+        if (puzzle is None and board is None) or (
+            puzzle is not None and board is not None
+        ):
+            raise ValueError("Must provide either a puzzle or a board.")
 
-    @classmethod
-    def from_puzzle(cls, puzzle: Puzzle) -> "Sudoku":
-        board = []
-        for puzzle_row in puzzle:
-            board_row = []
-            for item in puzzle_row:
-                board_item: List[int] = (
-                    [1, 2, 3, 4, 5, 6, 7, 8, 9] if item == 0 else [item]
-                )
-                board_row.append(board_item)
+        if puzzle is not None:
+            self.puzzle = puzzle
+            self.board = []
+            for puzzle_row in self.puzzle:
+                board_row = []
+                for puzzle_item in puzzle_row:
+                    board_item = (
+                        [1, 2, 3, 4, 5, 6, 7, 8, 9]
+                        if puzzle_item == 0
+                        else [puzzle_item]
+                    )
+                    board_row.append(board_item)
 
-            board.append(board_row)
+                self.board.append(board_row)
 
-        return Sudoku(board=board)
+        if board is not None:
+            self.puzzle = []
+            self.board = board
+            for board_row in self.board:
+                puzzle_row = []
+                for board_item in board_row:
+                    puzzle_item = board_item[0] if len(board_item) == 1 else 0
+                    puzzle_row.append(puzzle_item)
+
+                self.puzzle.append(puzzle_row)
 
     def solve_sudoku(self, allow_guessing: bool) -> None:
         logger.info("Solving the following sudoku:")
@@ -63,7 +82,7 @@ class Sudoku:
             logger.info("Not allowed to guess, so this is me done.")
             return
 
-        self._solve_with_guessing(current_guess_locations=[])
+        self._solve_with_guessing(random_guessing_order=False)
 
         if self._is_complete():
             logger.info("Completed sudoku:")
@@ -107,7 +126,9 @@ class Sudoku:
                     ):
                         # if we find that a number on the board is not possible, we remove it from the board
                         # and then restart the board-iteration:
-                        self[location].pop(self[location].index(possible_number))
+                        self._remove_possibility(
+                            number=possible_number, location=location
+                        )
                         updated = True
                         refined = True
                         break
@@ -183,19 +204,15 @@ class Sudoku:
 
         return False
 
-    def _solve_with_guessing(
-        self, current_guess_locations: List[Tuple[int, int]]
-    ) -> None:
+    def _solve_with_guessing(self, random_guessing_order: bool) -> None:
         # first check to run a deterministic solve (have to put this here so that the recursion works properly):
-        if current_guess_locations:
-            self.solve_deterministically()
-            if self._is_complete():
-                return
+        self.solve_deterministically()
+        if self._is_complete():
+            return
 
         guess_location = self._find_best_guess_location(
-            current_guess_locations=current_guess_locations
+            random_guessing_order=random_guessing_order,
         )
-        current_guess_locations.append(guess_location)
         guesses = self[guess_location].copy()
         logger.info(f"Guessing at {guess_location} {guesses}.")
         # save state then start guessing:
@@ -204,8 +221,8 @@ class Sudoku:
             logger.info(f"Guessing {guess} -> {guess_location}.")
             self[guess_location] = [guess]
             try:
-                self._solve_with_guessing(
-                    current_guess_locations=current_guess_locations,
+                return self._solve_with_guessing(
+                    random_guessing_order=random_guessing_order,
                 )
 
             except SudokuError:
@@ -215,10 +232,6 @@ class Sudoku:
                 )
                 self.board = saved_board
                 continue
-
-            # the guess was good and we finished:
-            if self._is_complete():
-                return
 
         # if we get here, that means we tried every possibility in the guess location and none of them worked:
         raise SudokuError(
@@ -337,28 +350,28 @@ class Sudoku:
 
         return True
 
-    def _find_best_guess_location(
-        self, current_guess_locations: List[Tuple[int, int]]
-    ) -> Tuple[int, int]:
+    def _find_best_guess_location(self, random_guessing_order: bool) -> Tuple[int, int]:
         # used to track the min number of options in a cell across the whole board:
         min_options = 10
+        min_location: Optional[Tuple[int, int]] = None
 
         # loop through, looking for a cell with only 2 options, and update min_options in the process:
-        for location in sudoku_coordinates():
-            if location in current_guess_locations:
-                continue
-
+        coordinate_iterator = (
+            sudoku_coordinates_random()
+            if random_guessing_order
+            else sudoku_coordinates()
+        )
+        for location in coordinate_iterator:
             n = len(self[location])
             if n == 2:
                 return location
 
             if 1 < n < min_options:
                 min_options = n
+                min_location = location
 
-        # if we get here, there are no cells with only 2 options, so we take one with min_options:
-        for location in sudoku_coordinates():
-            if len(self[location]) == min_options:
-                return location
+        if min_location is not None:
+            return min_location
 
         raise Exception("No guesses, maybe sudoku is complete?")
 
@@ -425,11 +438,34 @@ class Sudoku:
             for board_row in self.board
         ]
 
+    def _remove_possibility(self, number: int, location: Tuple[int, int]) -> None:
+        self[location].pop(self[location].index(number))
+        if len(self[location]) == 1:
+            self.puzzle[location[0]][location[1]] = self[location][0]
+
     def __getitem__(self, item: Tuple[int, int]) -> List[int]:
         return self.board[item[0]][item[1]]
 
-    def __setitem__(self, key: Tuple[int, int], value: List[int]) -> None:
-        self.board[key[0]][key[1]] = value
+    def __setitem__(self, key: Tuple[int, int], value: int | List[int]) -> None:
+        if isinstance(value, int):
+            self.puzzle[key[0]][key[1]] = value
+            if value == 0:
+                self.board[key[0]][key[1]] = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+            else:
+                self.board[key[0]][key[1]] = [value]
+
+        elif isinstance(value, list):
+            self.board[key[0]][key[1]] = value
+            if len(value) == 1:
+                self.puzzle[key[0]][key[1]] = value[0]
+
+            else:
+                self.puzzle[key[0]][key[1]] = 0
+
+        else:
+            raise TypeError(
+                f"Sudoku item can only be set with an int or List[int], not {type(value).__name__}"
+            )
 
     def __str__(self) -> str:
         horizontal_line = "-------------------------"

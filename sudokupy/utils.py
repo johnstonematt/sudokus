@@ -1,6 +1,7 @@
+import random
 import logging
-from typing import List, Iterator, TypeAlias, Tuple
 from enum import Enum
+from typing import List, Iterator, TypeAlias, Tuple, Optional
 
 
 Puzzle: TypeAlias = List[List[int]]
@@ -165,3 +166,53 @@ def sudoku_indices() -> Iterator[int]:
 def sudoku_numbers() -> Iterator[int]:
     for number in range(1, 10):
         yield number
+
+
+def empty_puzzle() -> Puzzle:
+    return [[0 for _ in sudoku_indices()] for __ in sudoku_indices()]
+
+
+def range_random(start: int, end: int, n: Optional[int] = None) -> List[int]:
+    if n is None:
+        n = end - start
+
+    if n > end - start:
+        raise ValueError(
+            f"Can't sample {n} from {start} -> {end} (only {end - start} available)."
+        )
+
+    ordered_numbers = [i for i in range(start, end)]
+    random_numbers = []
+    for _ in range(n):
+        index = random.randint(0, len(ordered_numbers) - 1)
+        random_numbers.append(ordered_numbers.pop(index))
+
+    return random_numbers
+
+
+def sudoku_coordinates_random() -> Iterator[Tuple[int, int]]:
+    for x in range_random(0, 9):
+        for y in range_random(0, 9):
+            yield x, y
+
+
+def generate_diagonal_puzzle() -> Puzzle:
+    puzzle: Puzzle = [[0 for _ in sudoku_indices()] for __ in sudoku_indices()]
+    # can randomly fill the blocks of the leading diagonal:
+    for block_index in (0, 4, 8):
+        random_numbers = [rn for rn in range_random(1, 10)]
+        i = 0
+        for x, y in subset_coordinates(subset=Subset.BLOCK, index=block_index):
+            puzzle[x][y] = random_numbers[i]
+            i += 1
+
+    return puzzle
+
+
+def block_indices_to_axial_indices(
+    block_index: int, block_subindex: int
+) -> Tuple[int, int]:
+    corner_row, corner_column = find_corner_row_and_column(block_index=block_index)
+    extra_rows = block_subindex // 3
+    extra_columns = block_subindex % 3
+    return corner_row + extra_rows, corner_column + extra_columns
